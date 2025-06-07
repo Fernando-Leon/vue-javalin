@@ -22,6 +22,9 @@ fun main() {
             ApiBuilder.get("/", VueComponent("home-page"))
             ApiBuilder.get("/popular-books", VueComponent("popular-books"))
             ApiBuilder.get("/intent", VueComponent("intent"))
+            ApiBuilder.get("/mice-page", VueComponent("mice-page"))
+            ApiBuilder.get("/dessert-page", VueComponent("dessert-page"))
+            ApiBuilder.get("/games-page", VueComponent("games-page"))
         }
     }.start();
 }
