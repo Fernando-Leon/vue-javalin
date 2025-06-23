@@ -122,7 +122,7 @@
 app.component("mice-page", {
     template: "#mice-page",
   setup() {
-     const itemsPerPage = Vue.ref(4)
+    const itemsPerPage = Vue.ref(4)
     const mice = [
       {
         name: 'Logitech G Pro X',

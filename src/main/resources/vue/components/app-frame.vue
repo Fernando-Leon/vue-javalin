@@ -53,10 +53,7 @@
     template: "#app-frame",
     data: () => ({ 
       drawer: null,
-      userImg: 'images/profile-vue.png',
-      items: [
-      { text: 'Home Page', icon: 'mdi-clock' },
-      { text: 'Popular books', icon: 'mdi-account' },
-  ] })
+      userImg: 'images/profile-vue.png', 
+    })
   })
 </script>
