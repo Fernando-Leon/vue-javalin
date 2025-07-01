@@ -17,6 +17,7 @@ import mx.edu.uttt.mice.MiceController
 
 fun main() {
     // Configura el mapeador de Jackson para Kotlin
+    // Comentario de prueba para auto-reload
     val mapper = jacksonObjectMapper()
     JavalinJackson(mapper)
 
@@ -42,7 +43,7 @@ fun main() {
         config.router.mount {
         }.apiBuilder {
             get("/", VueComponent("home-page"))
-            get("/popular-books-page", VueComponent("popular-books"))
+            get("/popular-books", VueComponent("popular-books"))
             get("/mice-page", VueComponent("mice-page"))
             get("/dessert-page", VueComponent("dessert-page"))
             get("/games-page", VueComponent("games-page"))
@@ -50,7 +51,7 @@ fun main() {
             path("api") {
                 crud("desserts/{id}", DessertController) // Modulo de postres
                 crud("books/{id}", BookController) // Modulo de Libros
-                crud("desserts-iterator/{id}", DessertIteratorController) // Modulo de postres (iterator)
+                crud("dessert-iterator/{id}", DessertIteratorController) // Modulo de postres (iterator)
                 crud("mice/{id}", MiceController) // Modulo de mouses
                 crud("games/{id}", GamesController) // Modulo de juegos
             }

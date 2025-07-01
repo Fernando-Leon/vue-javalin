@@ -5,13 +5,21 @@ import io.javalin.http.Context
 import io.javalin.http.bodyValidator
 import mx.edu.uttt.games.dto.CreateGameDto
 import mx.edu.uttt.games.dto.UpdateGameDto
+import mx.edu.uttt.Util.properTrim
 import java.util.concurrent.CompletableFuture.supplyAsync
 
 object GamesController: CrudHandler {
 
     override fun create(ctx: Context) {
-        val createGameDto = ctx.bodyValidator<CreateGameDto>().get()
-        ctx.future { supplyAsync { GamesService.create(createGameDto) }.thenAccept(ctx::result) }
+        ctx.bodyValidator<CreateGameDto>()
+        .check({ it.name.isNotBlank() }, "Name cannot be blank")
+        .check({ it.description.isNotBlank() }, "Description cannot be blank")
+        .check({ it.minutes > 0 }, "Minutes must be positive")
+        .get().apply {
+            name = name.properTrim()
+        }.also { game -> 
+            ctx.future { supplyAsync { GamesService.create(game) }.thenAccept(ctx::result) }
+        }
     }
 
     override fun delete(ctx: Context, resourceId: String) {
@@ -27,7 +35,11 @@ object GamesController: CrudHandler {
     }
 
     override fun update(ctx: Context, resourceId: String) {
-        val updateGameDto = ctx.bodyValidator<UpdateGameDto>().get()
+        val updateGameDto = ctx.bodyValidator<UpdateGameDto>()
+        .check({ it.name.isNotBlank() }, "Name cannot be blank")
+        .check({ it.description.isNotBlank() }, "Description cannot be blank")
+        .check({ it.minutes > 0 }, "Minutes must be positive")
+        .get()
         ctx.future { supplyAsync { GamesService.update(resourceId, updateGameDto) }.thenAccept(ctx::result)}
     }
 }

@@ -48,7 +48,7 @@
           text="Reset data"
           variant="text"
           border
-          @click="reset"
+          @click="initialize"
         ></v-btn>
       </template>
     </v-data-table>
@@ -74,11 +74,11 @@
           </v-col>
 
           <v-col cols="12" md="6">
-            <v-number-input v-model="record.year" :max="adapter.getYear(adapter.date())" :min="1" label="Year"></v-number-input>
+            <v-text-field v-model.number="record.year" type="number" :max="adapter.getYear(adapter.date())" :min="1" label="Year"></v-text-field>
           </v-col>
 
           <v-col cols="12" md="6">
-            <v-number-input v-model="record.pages" :min="1" label="Pages"></v-number-input>
+            <v-text-field v-model.number="record.pages" type="number" :min="1" label="Pages"></v-text-field>
           </v-col>
         </v-row>
       </template>
@@ -101,90 +101,159 @@
 app.component("popular-books", {
   template: "#popular-books",
   setup() {
-    const adapter = Vuetify.useDate()
-
+    const { getCurrentInstance } = Vue;
+    const instance = getCurrentInstance();
+    const { $fetch, $toast, $showError, $swalConfirm } = instance.appContext.config.globalProperties;
+    
+    const adapter = Vuetify.useDate();
+    
+    const dialog = Vue.ref(false);
+    const isEditing = Vue.ref(false);
+    const books = Vue.ref([]);
+    
+    const headers = Vue.ref([
+      { text: 'Title', value: 'title' },
+      { text: 'Author', value: 'author' },
+      { text: 'Genre', value: 'genre' },
+      { text: 'Year', value: 'year' },
+      { text: 'Pages', value: 'pages' },
+      { text: 'Actions', value: 'actions', sortable: false }
+    ]);
+    
     const DEFAULT_RECORD = {
       title: '',
       author: '',
       genre: '',
-      year: adapter.getYear(adapter.date()),
-      pages: 1,
-    }
-
-    const books = Vue.ref([])
-    const record = Vue.ref({ ...DEFAULT_RECORD })
-    const dialog = Vue.shallowRef(false)
-    const isEditing = Vue.shallowRef(false)
-
-    const headers = [
-      { title: 'Title', key: 'title', align: 'start' },
-      { title: 'Author', key: 'author' },
-      { title: 'Genre', key: 'genre' },
-      { title: 'Year', key: 'year', align: 'end' },
-      { title: 'Pages', key: 'pages', align: 'end' },
-      { title: 'Actions', key: 'actions', align: 'end', sortable: false },
-    ]
-
+      year: null,
+      pages: null,
+    };
+    
+    const record = Vue.ref({ ...DEFAULT_RECORD });
+    
+    const initialize = () => {
+      dialog.value = false;
+      $fetch('/api/books')
+        .then(response => {
+          books.value = response;
+        })
+        .catch(error => {
+          $toast.fire({ icon: 'error', title: error });
+        });
+    };
+    
     const add = () => {
-      isEditing.value = false
-      record.value = { ...DEFAULT_RECORD }
-      dialog.value = true
-    }
-
+      isEditing.value = false;
+      record.value = { ...DEFAULT_RECORD };
+      dialog.value = true;
+    };
+    
     const edit = (id) => {
-      isEditing.value = true
-      const found = books.value.find((book) => book.id === id)
+      isEditing.value = true;
+      const found = books.value.find((book) => book.id === id);
       if (found) {
-        record.value = { ...found }
-        dialog.value = true
+        record.value = { ...found };
+        dialog.value = true;
       }
-    }
-
+    };
+    
     const remove = (id) => {
-      const index = books.value.findIndex((book) => book.id === id)
-      if (index !== -1) books.value.splice(index, 1)
-    }
-
+      $swalConfirm(
+        '¿Eliminar libro?',
+        '¿Estás seguro de que quieres eliminar este libro? Esta acción no se puede deshacer.',
+        'warning'
+      ).then((result) => {
+        if (result.isConfirmed) {
+          $fetch(`/api/books/${id}`, {
+            method: 'DELETE',
+          })
+          .then(() => {
+            initialize();
+            $toast.fire({ icon: 'success', title: 'Libro eliminado' });
+          })
+          .catch(err => {
+            $showError('Error', 'No se pudo eliminar el libro');
+          });
+        }
+      });
+    };
+    
     const save = () => {
+      // Limpiar datos antes de enviar (sin incluir id en el body)
+      const bookData = {
+        title: record.value.title || '',
+        author: record.value.author || '',
+        genre: record.value.genre || '',
+        year: record.value.year ? parseInt(record.value.year) : null,
+        pages: record.value.pages ? parseInt(record.value.pages) : null,
+      };
+      
       if (isEditing.value) {
-        const index = books.value.findIndex((book) => book.id === record.value.id)
-        if (index !== -1) books.value[index] = { ...record.value }
+        // Para update: NO incluir el id en el body, solo en la URL
+        $fetch(`/api/books/${record.value.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(bookData)
+        })
+        .then(() => {
+          dialog.value = false;
+          initialize();
+          $toast.fire({ icon: 'success', title: 'Libro actualizado' });
+        })
+        .catch(err => {
+          console.error('Error al actualizar:', err);
+          $showError('Error', 'No se pudo actualizar el libro: ' + err);
+        });
       } else {
-        record.value.id = books.value.length + 1
-        books.value.push({ ...record.value })
+        // Para create: tampoco incluir id
+        $fetch('/api/books', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(bookData)
+        })
+        .then(() => {
+          dialog.value = false;
+          initialize();
+          $toast.fire({ icon: 'success', title: 'Libro agregado' });
+        })
+        .catch(err => {
+          console.error('Error al crear:', err);
+          let errorMessage = err.message;
+          
+          // Try to extract the validation message from the error response
+          try {
+            if (err.message && err.message.includes('REQUEST_BODY')) {
+              const errorData = JSON.parse(err.message.split('Error: ')[1]);
+              if (errorData.REQUEST_BODY && errorData.REQUEST_BODY.length > 0) {
+                errorMessage = errorData.REQUEST_BODY[0].message;
+              }
+            }
+          } catch (parseError) {
+            // If parsing fails, use the original error message
+            console.warn('Could not parse error message:', parseError);
+          }
+          
+          $showError('Error', 'No se pudo crear el libro: ' + errorMessage);
+        });
       }
-      dialog.value = false
-    }
-
-    const reset = () => {
-      dialog.value = false
-      record.value = { ...DEFAULT_RECORD }
-      books.value = [
-        { id: 1, title: 'To Kill a Mockingbird', author: 'Harper Lee', genre: 'Fiction', year: 1960, pages: 281 },
-        { id: 2, title: '1984', author: 'George Orwell', genre: 'Dystopian', year: 1949, pages: 328 },
-        { id: 3, title: 'The Great Gatsby', author: 'F. Scott Fitzgerald', genre: 'Fiction', year: 1925, pages: 180 },
-        { id: 4, title: 'Sapiens', author: 'Yuval Noah Harari', genre: 'Non-Fiction', year: 2011, pages: 443 },
-        { id: 5, title: 'Dune', author: 'Frank Herbert', genre: 'Sci-Fi', year: 1965, pages: 412 },
-      ]
-    }
-
+    };
+    
     Vue.onMounted(() => {
-      reset()
-    })
-
+      initialize();
+    });
+    
     return {
-      books,
-      record,
       dialog,
       isEditing,
+      books,
       headers,
+      record,
       adapter,
       add,
       edit,
       remove,
       save,
-      reset,
-    }
+      initialize
+    };
   }
-})
+});
 </script>

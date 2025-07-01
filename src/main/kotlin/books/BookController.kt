@@ -5,13 +5,20 @@ import io.javalin.http.Context
 import io.javalin.http.bodyValidator
 import mx.edu.uttt.books.dto.CreateBookDto
 import mx.edu.uttt.books.dto.UpdateBookDto
+import mx.edu.uttt.books.BookService
+import mx.edu.uttt.Util.properTrim
 import java.util.concurrent.CompletableFuture.supplyAsync
 
 object BookController: CrudHandler {
 
     override fun create(ctx: Context) {
-        val createBookDto = ctx.bodyValidator<CreateBookDto>().get()
-        ctx.future { supplyAsync { BookService.create(createBookDto) }.thenAccept(ctx::result) }
+        ctx.bodyValidator<CreateBookDto>()
+        .check({ it.title.isNotBlank() }, "Title cannot be blank")
+        .get().apply {
+            title = title.properTrim()
+        }.also { book -> 
+            ctx.future { supplyAsync { BookService.create(book) }.thenAccept(ctx::result) }
+        }
     }
 
     override fun delete(ctx: Context, resourceId: String) {

@@ -1,7 +1,7 @@
 package mx.edu.uttt.mice.dto
 
 data class CreateMiceDto(
-    val name: String,
+    var name: String,
     val description: String,
     val dpi: Int,
     val buttons: Int,

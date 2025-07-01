@@ -5,13 +5,24 @@ import io.javalin.http.Context
 import io.javalin.http.bodyValidator
 import mx.edu.uttt.mice.dto.CreateMiceDto
 import mx.edu.uttt.mice.dto.UpdateMiceDto
+import mx.edu.uttt.Util.properTrim
 import java.util.concurrent.CompletableFuture.supplyAsync
 
 object MiceController: CrudHandler {
 
     override fun create(ctx: Context) {
-        val createMiceDto = ctx.bodyValidator<CreateMiceDto>().get()
-        ctx.future { supplyAsync { MiceService.create(createMiceDto) }.thenAccept(ctx::result) }
+        ctx.bodyValidator<CreateMiceDto>()
+        .check({ it.name.isNotBlank() }, "Name cannot be blank")
+        .check({ it.description.isNotBlank() }, "Description cannot be blank")
+        .check({ it.dpi > 0 }, "DPI must be positive")
+        .check({ it.buttons > 0 }, "Buttons must be positive")
+        .check({ it.weight > 0 }, "Weight must be positive")
+        .check({ it.price >= 0 }, "Price must be positive")
+        .get().apply {
+            name = name.properTrim()
+        }.also { mice -> 
+            ctx.future { supplyAsync { MiceService.create(mice) }.thenAccept(ctx::result) }
+        }
     }
 
     override fun delete(ctx: Context, resourceId: String) {
@@ -27,7 +38,14 @@ object MiceController: CrudHandler {
     }
 
     override fun update(ctx: Context, resourceId: String) {
-        val updateMiceDto = ctx.bodyValidator<UpdateMiceDto>().get()
+        val updateMiceDto = ctx.bodyValidator<UpdateMiceDto>()
+        .check({ it.name.isNotBlank() }, "Name cannot be blank")
+        .check({ it.description.isNotBlank() }, "Description cannot be blank")
+        .check({ it.dpi > 0 }, "DPI must be positive")
+        .check({ it.buttons > 0 }, "Buttons must be positive")
+        .check({ it.weight > 0 }, "Weight must be positive")
+        .check({ it.price >= 0 }, "Price must be positive")
+        .get()
         ctx.future { supplyAsync { MiceService.update(resourceId, updateMiceDto) }.thenAccept(ctx::result)}
     }
 }
